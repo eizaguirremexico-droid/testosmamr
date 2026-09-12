@@ -1,7 +1,7 @@
 import './style.css';
 import {
   ACESFilmicToneMapping, AmbientLight, Box3, CanvasTexture, Color, DirectionalLight,
-  Mesh, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator,
+  FrontSide, Mesh, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator,
   Scene, SRGBColorSpace, Vector3, WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -10,13 +10,15 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const MODEL_URL = '/inky-strut.glb';
-const MODEL_TILT_X = -Math.PI / 2; // el STL viene en Z-up; lo pasamos a Y-up
+const MODEL_TILT_X = 0; // el GLB ya viene en Y-up (convencion glTF)
 
+// El primer acabado es el material PBR original del GLB (con sus texturas).
+// Los demas lo sustituyen por un material liso, util para leer la silueta.
 const MATERIALS = [
-  { name: 'Porcelana',  color: 0xdadae2, metalness: 0.05, roughness: 0.55 },
-  { name: 'Grafito',    color: 0x2b2f36, metalness: 0.35, roughness: 0.42 },
-  { name: 'Oro',        color: 0xc9a227, metalness: 1.0,  roughness: 0.28 },
-  { name: 'Cromo azul', color: 0x6ea8fe, metalness: 1.0,  roughness: 0.14 },
+  null,
+  { color: 0xdadae2, metalness: 0.05, roughness: 0.55 },
+  { color: 0xc9a227, metalness: 1.0,  roughness: 0.28 },
+  { color: 0x6ea8fe, metalness: 1.0,  roughness: 0.14 },
 ];
 
 const $ = (s) => document.querySelector(s);
@@ -88,7 +90,9 @@ controls.addEventListener('change', () => { needsRender = true; });
 // Carga del modelo
 // --------------------------------------------------------------------
 let model = null;
-let material = null;
+let textured = null;   // material original del GLB
+let solid = null;      // material liso, se crea al vuelo
+const meshes = [];
 let home = { pos: new Vector3(2.2, 1.4, 2.6), target: new Vector3() };
 camera.position.copy(home.pos);
 
@@ -99,7 +103,7 @@ function onProgress(e) {
   // Con Content-Length conocido usamos el valor real; si no, avance estimado.
   const pct = e.lengthComputable && e.total
     ? (e.loaded / e.total) * 100
-    : Math.min(90, (e.loaded / 400000) * 100);
+    : Math.min(90, (e.loaded / 810000) * 100);
   barEl.style.width = pct.toFixed(0) + '%';
   loaderTxt.textContent = 'Cargando modelo… ' + pct.toFixed(0) + '%';
 }
@@ -108,21 +112,33 @@ function onLoaded(gltf) {
   model = gltf.scene;
   model.rotation.x = MODEL_TILT_X;
 
-  material = new MeshStandardMaterial({ envMapIntensity: 1.1 });
-  applyMaterial(0);
-
   let tris = 0;
   model.traverse((o) => {
     if (!o.isMesh) return;
-    o.material = material;
+    meshes.push(o);
+    if (!textured) {
+      textured = o.material;               // material PBR original del GLB
+      textured.envMapIntensity = 1.0;
+      textured.side = FrontSide;           // el GLB viene doubleSided: culling = la mitad de fragmentos
+    }
     const g = o.geometry;
     tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
   });
+  applyMaterial(0);
 
   frame();
   scene.add(model);
 
   $('#stat-tris').textContent = Math.round(tris).toLocaleString('es') + ' triángulos';
+  // En glTF metalness y roughness comparten imagen, asi que contamos texturas
+  // unicas y no slots del material.
+  const maps = new Set(
+    ['map', 'normalMap', 'roughnessMap', 'metalnessMap']
+      .map((k) => textured[k])
+      .filter(Boolean)
+  );
+  const px = textured.map?.image?.width;
+  $('#stat-tex').textContent = maps.size + ' texturas PBR' + (px ? ' · ' + px + ' px' : '');
   fetch(MODEL_URL, { method: 'HEAD' })
     .then((r) => {
       const b = Number(r.headers.get('content-length'));
@@ -195,11 +211,16 @@ function refit() {
 // Interfaz
 // --------------------------------------------------------------------
 function applyMaterial(i) {
-  const m = MATERIALS[i];
-  material.color = new Color(m.color);
-  material.metalness = m.metalness;
-  material.roughness = m.roughness;
-  material.needsUpdate = true;
+  const preset = MATERIALS[i];
+  if (preset) {
+    if (!solid) solid = new MeshStandardMaterial({ envMapIntensity: 1.1, side: FrontSide });
+    solid.color = new Color(preset.color);
+    solid.metalness = preset.metalness;
+    solid.roughness = preset.roughness;
+    solid.needsUpdate = true;
+  }
+  const next = preset ? solid : textured;
+  for (const mesh of meshes) mesh.material = next;
   needsRender = true;
 }
 

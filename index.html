@@ -31,10 +31,11 @@
       <dl>
         <div><dt>Malla</dt><dd id="stat-tris">—</dd></div>
         <div><dt>Archivo</dt><dd id="stat-size">—</dd></div>
-        <div><dt>Origen</dt><dd>STL 152 MB · 3.05 M triángulos</dd></div>
-        <div><dt>Formato</dt><dd>glTF binario + Meshopt</dd></div>
+        <div><dt>Texturas</dt><dd id="stat-tex">—</dd></div>
+        <div><dt>Origen</dt><dd>GLB 97 MB · 3.05 M triángulos</dd></div>
+        <div><dt>Formato</dt><dd>glTF + Meshopt + WebP</dd></div>
       </dl>
-      <p class="panel__note">Optimizado para carga rápida en móvil: decimación cuádrica, cuantización de vértices y compresión Meshopt.</p>
+      <p class="panel__note">Optimizado para carga rápida en móvil: simplificación de malla conservando UVs, texturas reescaladas a 1024 px en WebP y geometría cuantizada con Meshopt.</p>
     </aside>
 
     <p class="hint" id="hint" aria-hidden="true">
@@ -48,8 +49,8 @@
         <span>Girar</span>
       </button>
       <div class="swatches" role="group" aria-label="Acabado del material">
-        <button class="sw" data-mat="0" style="--c:#e8e8ee" aria-label="Acabado porcelana" aria-pressed="true"></button>
-        <button class="sw" data-mat="1" style="--c:#2b2f36" aria-label="Acabado grafito" aria-pressed="false"></button>
+        <button class="sw" data-mat="0" style="--c:linear-gradient(135deg,#f2f2f2 0 46%,#14161a 46% 100%)" aria-label="Textura original" aria-pressed="true"></button>
+        <button class="sw" data-mat="1" style="--c:#dadae2" aria-label="Acabado porcelana" aria-pressed="false"></button>
         <button class="sw" data-mat="2" style="--c:#c9a227" aria-label="Acabado oro" aria-pressed="false"></button>
         <button class="sw" data-mat="3" style="--c:#6ea8fe" aria-label="Acabado cromo azul" aria-pressed="false"></button>
       </div>

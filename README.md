@@ -30,36 +30,63 @@ npx vercel --prod
 
 ## Peso de la página
 
-| Recurso            | Transferido (gzip) |
-| ------------------ | ------------------ |
-| `inky-strut.glb`   | ~293 KB            |
-| JS (three.js)      | ~168 KB            |
-| CSS + HTML         | ~3 KB              |
-| **Total 1ª carga** | **~464 KB**        |
+| Recurso            | Transferido |
+| ------------------ | ----------- |
+| `inky-strut.glb`   | ~790 KB     |
+| JS (three.js)      | ~168 KB gz  |
+| CSS + HTML         | ~3 KB gz    |
+| **Total 1ª carga** | **~960 KB** |
 
 En visitas siguientes el `.glb` y el bundle salen de caché inmutable.
 
 ## Cómo se optimizó el modelo
 
-El STL original pesa 152 MB (3 056 724 triángulos), inservible en web. El
-pipeline, en `convert.py` (en la carpeta padre), hace:
+El GLB de Meshy pesa 97 MB: 3 056 724 triángulos y tres texturas
+(baseColor 4096², normal 4096², metallicRoughness 2048²), unos 200 MB de VRAM.
+Inservible en móvil.
 
-1. Lectura del STL binario y **soldado de vértices** (1,53 M vértices únicos).
-2. **Decimación cuádrica** a 90 000 triángulos con `fast-simplification`.
-3. Recentrado, normalización de escala y **normales suaves** por área.
-4. Exportación a glTF binario.
-5. `gltf-transform optimize --compress meshopt`: cuantización de vértices +
-   compresión Meshopt → **379 KB** (293 KB al vuelo con gzip).
-
-Se descartó Draco (242 KB) porque su decodificador añade ~180 KB extra y
-descomprime bastante más lento que Meshopt, cuyo decodificador ronda los 25 KB.
-
-Para regenerar el modelo con otra densidad de malla:
+El pipeline es todo `gltf-transform`, sin scripts propios:
 
 ```bash
-python convert.py raw.glb 60000
-npx gltf-transform optimize raw.glb public/inky-strut.glb --compress meshopt --texture-compress false --simplify false
+IN="Meshy_AI_Inky_Strut_0912160536_texture.glb"
+
+# 1. Simplificar la malla a ~3 % de triángulos, conservando las UVs
+npx @gltf-transform/cli simplify "$IN" s1.glb --ratio 0.03 --error 0.002
+
+# 2. Reescalar las tres texturas a 1024 px
+npx @gltf-transform/cli resize s1.glb s2.glb --width 1024 --height 1024
+
+# 3. Pasarlas a WebP
+npx @gltf-transform/cli webp s2.glb s3.glb --quality 82
+
+# 4. Cuantizar y comprimir la geometría con Meshopt
+npx @gltf-transform/cli optimize s3.glb public/inky-strut.glb \
+  --compress meshopt --texture-compress false --simplify false
 ```
+
+Resultado: **97 MB → 790 KB** con las tres texturas PBR intactas.
+
+| Paso                   | Peso    |
+| ---------------------- | ------- |
+| GLB original           | 97 MB   |
+| Tras simplificar malla | 12,9 MB |
+| Tras reescalar texturas| 2,8 MB  |
+| Tras WebP              | 2,67 MB |
+| Tras Meshopt           | 790 KB  |
+
+Un par de decisiones que importan:
+
+- La simplificación **tiene que ser la de meshoptimizer**, no una decimación
+  cuádrica cualquiera: hay que preservar las UVs o las texturas se destruyen.
+- Se descartó **Draco**: comprime algo más que Meshopt, pero su decodificador
+  añade ~180 KB al bundle y descomprime bastante más lento. El de Meshopt ronda
+  los 25 KB.
+- Las texturas en WebP a 1024 px pesan 167 KB entre las tres, frente a los
+  10,4 MB de los JPEG originales.
+
+> Ojo: un STL **no puede llevar texturas** — es solo una lista de triángulos, ni
+> siquiera tiene UVs. Aunque Meshy nombre el archivo `..._texture.stl`, hay que
+> exportar en GLB para conservar el material.
 
 ## Decisiones de rendimiento
 
@@ -68,12 +95,12 @@ npx gltf-transform optimize raw.glb public/inky-strut.glb --compress meshopt --t
   consumo de GPU en reposo es cero.
 - **Tope de `devicePixelRatio` en 2**: evita renderizar a 3x en móviles de gama
   alta, donde es la principal causa de caída de FPS.
+- **Backface culling**: el GLB viene `doubleSided`; forzar `FrontSide` ahorra la
+  mitad del trabajo de fragmentos.
 - **Sin mapas de sombra**: la sombra de contacto es un degradado radial dibujado
   en un canvas de 128×128, generado en el cliente.
 - **Entorno PBR procedural** (`RoomEnvironment`): reflejos creíbles sin
   descargar ningún HDR.
-- **Sin texturas**: el STL no las lleva, así que el material es PBR por
-  parámetros y se puede cambiar en caliente.
 
 ## Accesibilidad y responsive
 
