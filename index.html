@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Inky Strut — Visor 3D</title>
+  <meta name="description" content="Visor 3D interactivo del modelo Inky Strut. Arrastra para girar, pellizca para acercar." />
+  <meta name="theme-color" content="#0b0d10" />
+  <meta property="og:title" content="Inky Strut — Visor 3D" />
+  <meta property="og:description" content="Modelo 3D interactivo, ligero y responsive." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🗿</text></svg>" />
+  <link rel="preload" href="/inky-strut.glb" as="fetch" type="model/gltf-binary" crossorigin />
+</head>
+<body>
+  <div class="stage">
+    <canvas id="scene" aria-label="Modelo 3D interactivo Inky Strut" role="img"></canvas>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="brand__name">Inky&nbsp;Strut</span>
+      </div>
+      <button class="icon-btn" id="btn-info" aria-label="Información del modelo" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.6"/></svg>
+      </button>
+    </header>
+
+    <aside class="panel" id="panel" hidden>
+      <h2>Sobre el modelo</h2>
+      <dl>
+        <div><dt>Malla</dt><dd id="stat-tris">—</dd></div>
+        <div><dt>Archivo</dt><dd id="stat-size">—</dd></div>
+        <div><dt>Origen</dt><dd>STL 152 MB · 3.05 M triángulos</dd></div>
+        <div><dt>Formato</dt><dd>glTF binario + Meshopt</dd></div>
+      </dl>
+      <p class="panel__note">Optimizado para carga rápida en móvil: decimación cuádrica, cuantización de vértices y compresión Meshopt.</p>
+    </aside>
+
+    <p class="hint" id="hint" aria-hidden="true">
+      <span class="hint__d">Arrastra para girar · Rueda para acercar</span>
+      <span class="hint__m">Desliza para girar · Pellizca para acercar</span>
+    </p>
+
+    <footer class="dock" role="toolbar" aria-label="Controles del visor">
+      <button class="pill" id="btn-spin" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4"/></svg>
+        <span>Girar</span>
+      </button>
+      <div class="swatches" role="group" aria-label="Acabado del material">
+        <button class="sw" data-mat="0" style="--c:#e8e8ee" aria-label="Acabado porcelana" aria-pressed="true"></button>
+        <button class="sw" data-mat="1" style="--c:#2b2f36" aria-label="Acabado grafito" aria-pressed="false"></button>
+        <button class="sw" data-mat="2" style="--c:#c9a227" aria-label="Acabado oro" aria-pressed="false"></button>
+        <button class="sw" data-mat="3" style="--c:#6ea8fe" aria-label="Acabado cromo azul" aria-pressed="false"></button>
+      </div>
+      <button class="pill" id="btn-reset">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V4h5M21 15v5h-5M4.5 15a8 8 0 0 0 13.3 2.9M19.5 9A8 8 0 0 0 6.2 6.1"/></svg>
+        <span>Centrar</span>
+      </button>
+    </footer>
+
+    <div class="loader" id="loader">
+      <div class="loader__box">
+        <div class="loader__bar"><i id="bar"></i></div>
+        <p class="loader__txt" id="loader-txt">Cargando modelo… 0%</p>
+      </div>
+    </div>
+
+    <noscript><div class="loader"><div class="loader__box"><p class="loader__txt">Este visor 3D necesita JavaScript.</p></div></div></noscript>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
