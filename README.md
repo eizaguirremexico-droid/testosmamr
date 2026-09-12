@@ -32,10 +32,10 @@ npx vercel --prod
 
 | Recurso            | Transferido |
 | ------------------ | ----------- |
-| `inky-waver.glb`   | ~777 KB     |
+| `inky-waver.glb`   | ~1,93 MB    |
 | JS (three.js)      | ~168 KB gz  |
 | CSS + HTML         | ~3 KB gz    |
-| **Total 1ª carga** | **~950 KB** |
+| **Total 1ª carga** | **~2,1 MB** |
 
 En visitas siguientes el `.glb` y el bundle salen de caché inmutable.
 
@@ -45,13 +45,13 @@ El GLB de Meshy pesa 95 MB: 3 038 886 triángulos y tres texturas
 (baseColor 4096², normal 4096², metallicRoughness 2048²), unos 200 MB de VRAM.
 Inservible en móvil.
 
-El pipeline es todo `gltf-transform`, sin scripts propios:
+El pipeline:
 
 ```bash
 IN="Meshy_AI_Inky_Waver_0912200829_texture.glb"
 
-# 1. Simplificar la malla a ~3 % de triángulos, conservando las UVs
-npx @gltf-transform/cli simplify "$IN" s1.glb --ratio 0.03 --error 0.002
+# 1. Simplificar la malla, conservando las UVs
+npx @gltf-transform/cli simplify "$IN" s1.glb --ratio 0.10 --error 0.0004
 
 # 2. Reescalar las tres texturas a 1024 px
 npx @gltf-transform/cli resize s1.glb s2.glb --width 1024 --height 1024
@@ -59,20 +59,50 @@ npx @gltf-transform/cli resize s1.glb s2.glb --width 1024 --height 1024
 # 3. Pasarlas a WebP
 npx @gltf-transform/cli webp s2.glb s3.glb --quality 82
 
-# 4. Cuantizar y comprimir la geometría con Meshopt
-npx @gltf-transform/cli optimize s3.glb public/inky-waver.glb \
-  --compress meshopt --texture-compress false --simplify false
+# 4. Recalcular las normales (imprescindible, ver abajo)
+node tools/rebuild-normals.mjs s3.glb s4.glb
+
+# 5. Cuantizar y comprimir la geometria con Meshopt
+npx @gltf-transform/cli optimize s4.glb public/inky-waver.glb   --compress meshopt --texture-compress false --simplify false
 ```
 
-Resultado: **95 MB → 777 KB** con las tres texturas PBR intactas.
+Resultado: **95 MB → 1,93 MB** con las tres texturas PBR intactas.
 
 | Paso                   | Peso    |
 | ---------------------- | ------- |
 | GLB original           | 95 MB   |
-| Tras simplificar malla | 11,6 MB |
-| Tras reescalar texturas| 2,79 MB |
-| Tras WebP              | 2,67 MB |
-| Tras Meshopt           | 777 KB  |
+| Tras simplificar malla | 18,4 MB |
+| Tras reescalar texturas| 3,4 MB  |
+| Tras WebP              | 3,3 MB  |
+| Tras recalcular normales | 11,6 MB |
+| Tras Meshopt           | 1,93 MB |
+
+### El paso de las normales
+
+Es el que más cuesta descubrir. Al simplificar, los vértices que sobreviven
+conservan la normal del sculpt original, que ya no describe la superficie
+nueva. Sobre este material —negro, metálico y de roughness baja— cada
+desviación se amplifica en el reflejo, y aparece como púas oscuras dentadas
+en los bordes elevados de los ojos. No son las texturas ni la compresión: se
+reproduce igual con el normal map desactivado y con las normales sin cuantizar.
+
+`tools/rebuild-normals.mjs` las recalcula, con dos detalles que importan:
+
+- **Va antes de la cuantización.** `optimize` deja las posiciones en i16, y
+  calcular normales a partir de posiciones cuantizadas hereda ese ruido: la
+  superficie sale mate y picada. Hay que hacerlo con las posiciones aún en f32,
+  lo que también descarta hacerlo en el navegador al cargar.
+- **Suelda por posición.** Las costuras de UV duplican vértices; si cada isla
+  recibe su propia normal, la costura se ve como una arista dura justo en el
+  contorno de los ojos.
+
+### Por qué 303 884 triángulos
+
+A 91 000 triángulos (el 3 % del original) el modelo ya pierde el filo de los
+bordes de los ojos aunque las normales sean correctas: queda liso pero blando.
+A 303 884 (el 10 %) se sostiene la silueta. La diferencia son 777 KB frente a
+1,93 MB, así que si el peso importa más que el detalle basta con bajar el
+`--ratio` del paso 1 y repetir el pipeline.
 
 Un par de decisiones que importan:
 

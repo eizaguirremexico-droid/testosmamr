@@ -103,7 +103,7 @@ function onProgress(e) {
   // Con Content-Length conocido usamos el valor real; si no, avance estimado.
   const pct = e.lengthComputable && e.total
     ? (e.loaded / e.total) * 100
-    : Math.min(90, (e.loaded / 780000) * 100);
+    : Math.min(90, (e.loaded / 1930000) * 100);
   barEl.style.width = pct.toFixed(0) + '%';
   loaderTxt.textContent = 'Cargando modelo… ' + pct.toFixed(0) + '%';
 }
@@ -121,7 +121,11 @@ function onLoaded(gltf) {
       textured.envMapIntensity = 1.0;
       textured.side = FrontSide;           // el GLB viene doubleSided: culling = la mitad de fragmentos
     }
+    // Las normales vienen recalculadas desde el pipeline (rebuild-normals.mjs),
+    // no del sculpt original: ver el README. Solo como red de seguridad, si el
+    // GLB llegara sin ellas las calculamos aqui.
     const g = o.geometry;
+    if (!g.attributes.normal) g.computeVertexNormals();
     tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
   });
   applyMaterial(0);
