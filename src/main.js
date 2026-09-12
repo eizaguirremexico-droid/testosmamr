@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-const MODEL_URL = '/inky-strut.glb';
+const MODEL_URL = '/inky-waver.glb';
 const MODEL_TILT_X = 0; // el GLB ya viene en Y-up (convencion glTF)
 
 // El primer acabado es el material PBR original del GLB (con sus texturas).
@@ -103,7 +103,7 @@ function onProgress(e) {
   // Con Content-Length conocido usamos el valor real; si no, avance estimado.
   const pct = e.lengthComputable && e.total
     ? (e.loaded / e.total) * 100
-    : Math.min(90, (e.loaded / 810000) * 100);
+    : Math.min(90, (e.loaded / 780000) * 100);
   barEl.style.width = pct.toFixed(0) + '%';
   loaderTxt.textContent = 'Cargando modelo… ' + pct.toFixed(0) + '%';
 }
